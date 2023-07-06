@@ -5,16 +5,45 @@ using UnityEngine;
 
 public class Player : NetworkBehaviour
 {
-    [SerializeField] private Ball _prefabBall;
     [Networked] private TickTimer delay { get; set; }
-
+    [Networked(OnChanged = nameof(OnBallSpawned))] public NetworkBool spawned { get; set; }
     private NetworkCharacterControllerPrototype _cc;
+
+    [SerializeField] private Ball _prefabBall;
+    [SerializeField] private PhysxBall _prefabPhysxBall;
     private Vector3 _forward;
+    private Material _material;
+    Material material
+    {
+        get
+        {
+            if (_material == null)
+            {
+                _material = GetComponentInChildren<MeshRenderer>().material;
+            }
+            return _material;
+        }
+    }
+
+    public static void OnBallSpawned(Changed<Player> changed)
+    {
+        var newValue = changed.Behaviour.spawned;
+        Debug.Log($"newValue: {newValue}");
+        changed.LoadOld();
+        var oldValue = changed.Behaviour.spawned;
+        Debug.Log($"oldValue: {oldValue}");
+        changed.Behaviour.material.color = Color.white;
+    }
 
     private void Awake()
     {
         _cc = GetComponent<NetworkCharacterControllerPrototype>();
         _forward = transform.forward;
+    }
+
+    public override void Render()
+    {
+        material.color = Color.Lerp(material.color, Color.blue, Time.deltaTime);
     }
 
     public override void FixedUpdateNetwork()
@@ -37,6 +66,16 @@ public class Player : NetworkBehaviour
                     Runner.Spawn(_prefabBall, transform.position + _forward, Quaternion.LookRotation(_forward), Object.InputAuthority, (runner, o) =>
                     {
                         o.GetComponent<Ball>().Init();
+                        spawned = !spawned;
+                    });
+                }
+                if ((data.buttons & NetworkInputData.MOUSEBUTTON2) != 0)
+                {
+                    delay = TickTimer.CreateFromSeconds(Runner, 0.5f);
+                    Runner.Spawn(_prefabPhysxBall, transform.position + _forward, Quaternion.LookRotation(_forward), Object.InputAuthority, (runner, o) =>
+                    {
+                        o.GetComponent<PhysxBall>().Init(10*_forward);
+                        spawned = !spawned;
                     });
                 }
             }
