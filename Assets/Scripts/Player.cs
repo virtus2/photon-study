@@ -2,6 +2,7 @@ using Fusion;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Player : NetworkBehaviour
 {
@@ -13,6 +14,7 @@ public class Player : NetworkBehaviour
     [SerializeField] private PhysxBall _prefabPhysxBall;
     private Vector3 _forward;
     private Material _material;
+    private Text _messages;
     Material material
     {
         get
@@ -40,6 +42,30 @@ public class Player : NetworkBehaviour
         _cc = GetComponent<NetworkCharacterControllerPrototype>();
         _forward = transform.forward;
     }
+
+    private void Update()
+    {
+        if(Object.HasInputAuthority && Input.GetKeyDown(KeyCode.R))
+        {
+            RPC_SendMessage("Hey Mate!");
+        }
+    }
+    [Rpc(RpcSources.InputAuthority, RpcTargets.All)]
+    public void RPC_SendMessage(string message, RpcInfo info=default)
+    {
+        if (_messages == null)
+            _messages = FindObjectOfType<Text>();
+        if(info.IsInvokeLocal)
+        {
+            message = $"You said: {message}\n";
+        }
+        else
+        {
+            message = $"Some other player said: {message}\n";
+        }
+        _messages.text += message;
+    }
+    
 
     public override void Render()
     {
